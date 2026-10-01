@@ -29,6 +29,8 @@
   #panel small { font: 11px var(--mono); letter-spacing: .2em; color: var(--cyan); }
   #panel h2 { margin: 6px 0 4px; font: 500 17px var(--sans); }
   #panel p { margin: 0; font-size: 14px; line-height: 1.5; color: var(--dim); }
+  #status { margin: 0 auto; padding: 10px 14px; max-width: 420px; font-size: 14px; line-height: 1.45; background: rgba(5, 6, 8, .9); border: 1px solid var(--amber); border-radius: 6px; }
+  #status[hidden] { display: none; }
   #qr { position: absolute; top: 16px; right: 16px; width: 150px; text-align: center; font: 10px var(--mono); letter-spacing: .14em; color: var(--dim); }
   #qr[hidden] { display: none; }
   #qr img { width: 100%; border-radius: 4px; display: block; margin-bottom: 6px; }
@@ -36,11 +38,12 @@
 </head>
 <body>
 <model-viewer id="mv" src="cybersensorn.glb" ios-src="cybersensorn.usdz" alt="3D-modell av Cybersensorn: en kärna omgiven av sju inhämtningskällor"
-              ar ar-modes="webxr scene-viewer quick-look" ar-scale="auto" camera-controls touch-action="none"
+              ar ar-modes="scene-viewer webxr quick-look" ar-scale="auto" camera-controls touch-action="none"
               autoplay auto-rotate auto-rotate-delay="4000" rotation-per-second="8deg" shadow-intensity="0"
               camera-orbit="-20deg 62deg auto" min-camera-orbit="auto 10deg 0.2m" interaction-prompt="none">
   <h1>CYBERSENSORN</h1>
   <div class="ui">
+  <p id="status" role="status" hidden></p>
   <div id="panel" hidden aria-live="polite"><small></small><h2></h2><p></p></div>
   <div class="bar">
     <button id="sim" type="button">Simulera signal</button>
@@ -112,7 +115,27 @@ function focus(i) {
 }
 
 document.getElementById('reset').onclick = () => focus(null)
-document.getElementById('ar').onclick = () => mv.activateAR()
+// Say what happened instead of failing silently: AR needs a real browser and OS support.
+const status = document.getElementById('status')
+const say = msg => { status.textContent = msg; status.hidden = !msg }
+const ua = navigator.userAgent
+const device = /iPhone|iPad/.test(ua) ? 'iPhone' : /Android/.test(ua) ? 'Android' : 'dator'
+const inApp = /FBAN|FBAV|Instagram|Line\/|; wv\)|Snapchat|LinkedInApp/.test(ua)
+const HELP = device === 'iPhone'
+  ? 'AR startade inte. Öppna sidan i Safari (inte inuti en annan app).'
+  : 'AR startade inte. Öppna sidan i Chrome och kontrollera att appen "Google Play Services för AR" är installerad.'
+let started = false
+mv.addEventListener('ar-status', e => {
+  if (e.detail.status === 'session-started') { started = true; say('') }
+  if (e.detail.status === 'failed') say(HELP)
+})
+document.getElementById('ar').onclick = () => {
+  started = false
+  say('Startar AR …')
+  mv.activateAR()
+  // native viewers take over the screen; if we are still visible after 4 s, nothing opened
+  setTimeout(() => { if (!started && document.visibilityState === 'visible') say(`${HELP} (${device}${inApp ? ', inbyggd webbläsare' : ''})`) }, 4000)
+}
 document.getElementById('sim').onclick = () => { mv.currentTime = 0; mv.play() }
 mv.addEventListener('load', () => {
   document.getElementById('qr').hidden = mv.canActivateAR
