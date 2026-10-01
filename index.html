@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cybersensorn i AR</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500&display=swap" rel="stylesheet">
+<script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js"></script>
+<style>
+  :root { --bg: #050608; --ink: #e2e8ee; --dim: rgba(186, 200, 214, .6); --cyan: #7fd6ff; --amber: #ffba78;
+          --mono: 'IBM Plex Mono', ui-monospace, monospace; --sans: 'IBM Plex Sans', system-ui, sans-serif; }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; background: var(--bg); color: var(--ink); font-family: var(--sans); }
+  model-viewer { width: 100%; height: 100%; background: radial-gradient(circle at 50% 40%, #0d1218, var(--bg) 70%); --poster-color: transparent; }
+  h1 { position: absolute; top: 16px; left: 16px; margin: 0; font: 500 13px var(--mono); letter-spacing: .22em; color: var(--cyan); }
+  button { font: 500 12px var(--mono); letter-spacing: .14em; text-transform: uppercase; cursor: pointer; border-radius: 4px; }
+  button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+  .dot { width: 26px; height: 26px; padding: 0; border-radius: 50%; border: 2px solid var(--ink); background: rgba(5, 6, 8, .55); }
+  .dot[aria-pressed="true"] { border-color: var(--amber); background: rgba(255, 186, 120, .3); }
+  .ui { position: absolute; left: 16px; right: 16px; bottom: 16px; display: flex; flex-direction: column; gap: 10px; pointer-events: none; }
+  .ui > * { pointer-events: auto; }
+  .bar { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+  .bar button { min-height: 48px; padding: 0 18px; color: var(--ink); background: rgba(5, 6, 8, .7); border: 1px solid var(--dim); }
+  .bar .ar { color: var(--bg); background: var(--cyan); border-color: var(--cyan); }
+  #panel { width: 100%; max-width: 420px; margin: 0 auto; padding: 14px 16px;
+           background: rgba(5, 6, 8, .82); border: 1px solid rgba(127, 214, 255, .35); border-radius: 6px; }
+  #panel[hidden] { display: none; }
+  #panel small { font: 11px var(--mono); letter-spacing: .2em; color: var(--cyan); }
+  #panel h2 { margin: 6px 0 4px; font: 500 17px var(--sans); }
+  #panel p { margin: 0; font-size: 14px; line-height: 1.5; color: var(--dim); }
+  #qr { position: absolute; top: 16px; right: 16px; width: 150px; text-align: center; font: 10px var(--mono); letter-spacing: .14em; color: var(--dim); }
+  #qr[hidden] { display: none; }
+  #qr img { width: 100%; border-radius: 4px; display: block; margin-bottom: 6px; }
+</style>
+</head>
+<body>
+<model-viewer id="mv" src="cybersensorn.glb" ios-src="cybersensorn.usdz" alt="3D-modell av Cybersensorn: en kärna omgiven av sju inhämtningskällor"
+              ar ar-modes="webxr scene-viewer quick-look" ar-scale="auto" camera-controls touch-action="none"
+              autoplay auto-rotate auto-rotate-delay="4000" rotation-per-second="8deg" shadow-intensity="0"
+              camera-orbit="-20deg 62deg auto" min-camera-orbit="auto 10deg 0.2m" interaction-prompt="none">
+  <h1>CYBERSENSORN</h1>
+  <div class="ui">
+  <div id="panel" hidden aria-live="polite"><small></small><h2></h2><p></p></div>
+  <div class="bar">
+    <button id="sim" type="button">Simulera signal</button>
+    <button id="reset" type="button">Översikt</button>
+    <button class="ar" slot="ar-button" type="button">Visa i ditt rum</button>
+  </div>
+  </div>
+  <div id="qr" hidden><img src="qr.png" alt="QR-kod till den här sidan">Skanna för AR på mobilen</div>
+</model-viewer>
+
+<script type="module">
+// Texts from the presentation's src/data/content.ts (hubs). Positions mirror build_scene.py.
+const HUBS = [
+  ['N-01', 'Skrapningar digitala kanaler', 'Öppna och slutna digitala kanaler bevakas kontinuerligt – här hittades annonsen.'],
+  ['N-02', 'Telefonextraktioner', 'Innehåll från beslagtagna telefoner: kontakter, konton, meddelanden och nummer.'],
+  ['N-03', 'Ekonomiska transaktioner', 'Betalningsflöden som knyter personer, konton och händelser till varandra.'],
+  ['N-04', 'Anmälningsflödet / Förundersökningar', 'Uppgifter från anmälningar och pågående förundersökningar.'],
+  ['N-05', 'Underrättelseflödet', 'Underrättelseinformation som ger sammanhang åt enskilda observationer.'],
+  ['N-06', 'Resedata', 'Resor och rörelsemönster som kan kopplas till identifierade personer.'],
+  ['N-07', 'Internationell samverkan', 'Information från partner i andra länder – nummer, konton och kopplingar över gränser.'],
+]
+const CORE = ['CORE', 'Cybersensorn', 'Data från alla inhämtningar samlas, kopplas ihop och blir en gemensam lägesbild.']
+
+const mv = document.getElementById('mv')
+const panel = document.getElementById('panel')
+const HOME = { orbit: mv.getAttribute('camera-orbit'), target: 'auto auto auto' }
+
+// Blender (x, y, z) -> glTF (x, z, -y)
+const spots = HUBS.map((h, k) => {
+  const a = (180 - k * 360 / HUBS.length) * Math.PI / 180
+  return { info: h, pos: [0.14 * Math.cos(a), 0.10 + 0.015 * Math.sin(k * 2.4), -0.14 * Math.sin(a)] }
+})
+spots.push({ info: CORE, pos: [0, 0.135, 0] })
+
+const dots = spots.map(({ info, pos }, i) => {
+  const b = document.createElement('button')
+  b.className = 'dot'
+  b.type = 'button'
+  b.slot = 'hotspot-' + i
+  b.dataset.position = pos.map(v => v.toFixed(4) + 'm').join(' ')
+  b.dataset.normal = '0 1 0'
+  b.setAttribute('aria-label', info[1])
+  b.setAttribute('aria-pressed', 'false')
+  b.onclick = () => focus(i)
+  mv.appendChild(b)
+  return b
+})
+
+function focus(i) {
+  dots.forEach((d, j) => d.setAttribute('aria-pressed', String(j === i)))
+  panel.hidden = i === null
+  if (i === null) {
+    mv.cameraTarget = HOME.target
+    mv.cameraOrbit = HOME.orbit
+    mv.autoRotate = true
+    return
+  }
+  const { info, pos } = spots[i]
+  panel.querySelector('small').textContent = info[0]
+  panel.querySelector('h2').textContent = info[1]
+  panel.querySelector('p').textContent = info[2]
+  mv.autoRotate = false
+  mv.cameraTarget = pos.map(v => v + 'm').join(' ')
+  // look at the hub from outside the ring
+  const theta = Math.atan2(pos[0], pos[2]) * 180 / Math.PI
+  mv.cameraOrbit = `${theta}deg 65deg 0.32m`
+}
+
+document.getElementById('reset').onclick = () => focus(null)
+document.getElementById('sim').onclick = () => { mv.currentTime = 0; mv.play() }
+mv.addEventListener('load', () => {
+  document.getElementById('qr').hidden = mv.canActivateAR
+  // index.html#3 opens with that hub in focus (0-6 = N-01..N-07, 7 = core)
+  if (spots[location.hash.slice(1)]) focus(+location.hash.slice(1))
+})
+</script>
+</body>
+</html>
