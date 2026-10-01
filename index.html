@@ -40,7 +40,7 @@
 <model-viewer id="mv" src="cybersensorn.glb" ios-src="cybersensorn.usdz" alt="3D-modell av Cybersensorn: en kärna omgiven av sju inhämtningskällor"
               ar ar-modes="scene-viewer webxr quick-look" ar-scale="auto" camera-controls touch-action="none"
               autoplay auto-rotate auto-rotate-delay="4000" rotation-per-second="8deg" shadow-intensity="0"
-              camera-orbit="-20deg 62deg auto" min-camera-orbit="auto 10deg 0.2m" interaction-prompt="none">
+              camera-orbit="-12deg 60deg auto" min-camera-orbit="auto 10deg 0.2m" interaction-prompt="none">
   <h1>CYBERSENSORN</h1>
   <div class="ui">
   <p id="status" role="status" hidden></p>
@@ -76,9 +76,9 @@ const HOME = { orbit: mv.getAttribute('camera-orbit'), target: 'auto auto auto' 
 // Blender (x, y, z) -> glTF (x, z, -y)
 const spots = HUBS.map((h, k) => {
   const a = (180 - k * 360 / HUBS.length) * Math.PI / 180
-  return { info: h, pos: [0.14 * Math.cos(a), 0.10 + 0.015 * Math.sin(k * 2.4), -0.14 * Math.sin(a)] }
+  return { info: h, pos: [0.135 * Math.cos(a), 0.10 + 0.012 * Math.sin(k * 2.4), -0.135 * Math.sin(a)] }
 })
-spots.push({ info: CORE, pos: [0, 0.135, 0] })
+spots.push({ info: CORE, pos: [0, 0.0955, 0] })
 
 const dots = spots.map(({ info, pos }, i) => {
   const b = document.createElement('button')
