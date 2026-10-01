@@ -45,9 +45,11 @@
   <div class="bar">
     <button id="sim" type="button">Simulera signal</button>
     <button id="reset" type="button">Översikt</button>
-    <button class="ar" slot="ar-button" type="button">Visa i ditt rum</button>
+    <button class="ar" id="ar" type="button">Visa i ditt rum</button>
   </div>
   </div>
+  <!-- empty slot: hides model-viewer's default AR icon; our own button calls activateAR() -->
+  <span slot="ar-button"></span>
   <div id="qr" hidden><img src="qr.png" alt="QR-kod till den här sidan">Skanna för AR på mobilen</div>
 </model-viewer>
 
@@ -110,9 +112,11 @@ function focus(i) {
 }
 
 document.getElementById('reset').onclick = () => focus(null)
+document.getElementById('ar').onclick = () => mv.activateAR()
 document.getElementById('sim').onclick = () => { mv.currentTime = 0; mv.play() }
 mv.addEventListener('load', () => {
   document.getElementById('qr').hidden = mv.canActivateAR
+  document.getElementById('ar').hidden = !mv.canActivateAR
   // index.html#3 opens with that hub in focus (0-6 = N-01..N-07, 7 = core)
   if (spots[location.hash.slice(1)]) focus(+location.hash.slice(1))
 })
